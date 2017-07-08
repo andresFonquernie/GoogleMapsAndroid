@@ -24,15 +24,17 @@ public class MainActivity extends Activity {
         loc = (EditText) findViewById(R.id.locName);
         lon = (EditText) findViewById(R.id.longitud);
         lat = (EditText) findViewById(R.id.latitud);
+    }
 
-        loc.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, MapsActivity.class);
-                startActivityForResult(intent, MAP_ACTIVITY);
-
-            }
-        });
+    public void startMaps(View v){
+        Intent intent = new Intent(this, MapsActivity.class);
+        Log.e("MAPS", loc.getText().toString());
+        if(!loc.getText().toString().equals("")){
+            intent.putExtra(MapsActivity.EXTRA_TEXT, loc.getText().toString());
+            intent.putExtra(MapsActivity.EXTRA_LNG, Double.parseDouble(lon.getText().toString()));
+            intent.putExtra(MapsActivity.EXTRA_LAT, Double.parseDouble(lat.getText().toString()));
+        }
+        startActivityForResult(intent, MAP_ACTIVITY);
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {

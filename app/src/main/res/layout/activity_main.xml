@@ -14,7 +14,8 @@
         android:id="@+id/locName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Localizacion" />
+        android:text=""
+        android:onClick="startMaps"/>
 
     <EditText
         android:id="@+id/latitud"
@@ -22,7 +23,9 @@
         android:layout_height="wrap_content"
         android:text="Latitud"
         android:layout_below="@+id/locName"
-        android:layout_alignStart="@+id/locName" />
+        android:layout_alignStart="@+id/locName"
+        android:focusable="false"
+        android:onClick="startMaps"/>
 
     <EditText
         android:id="@+id/longitud"

@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -20,6 +21,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -37,6 +39,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available
     private EditText edt;
+
+    public static final String EXTRA_LNG = "lng";
+    public static final String EXTRA_LAT = "lat";
+    public static final String EXTRA_TEXT = "text";
+
+    String loc;
+    LatLng myPoint;
+    boolean createPoint;
 
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
@@ -56,6 +66,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         edt = (EditText) findViewById(R.id.TFaddress);
+
+        createPoint = false;
+        loc = getIntent().getStringExtra(EXTRA_TEXT);
+        if (loc != null && !loc.isEmpty()) {
+            myPoint = new LatLng(getIntent().getDoubleExtra(EXTRA_LAT, 0.0), getIntent().getDoubleExtra(EXTRA_LNG, 0.0));
+            createPoint = true;
+        }
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -94,6 +111,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
         }
+        if(createPoint)
+            addpoint(myPoint);
     }
 
     public void onSearch(View view) {
@@ -114,44 +133,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
+        Log.e("onLocationChanged", location.getLatitude()+ " " + location.getLongitude());
         mLastLocation = location;
-
-        //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-
-        //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(13));
-
-        //stop location updates
-        if (mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-        }
+        updateCamera(latLng);
     }
 
     @Override
     public void onMapClick(LatLng point) {
-        if (mCurrLocationMarker != null) {
-            mCurrLocationMarker.remove();
-        }
-
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(point);
-        markerOptions.title("Current Position");
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
-        mCurrLocationMarker = mMap.addMarker(markerOptions);
-        mCurrLocationMarker.setTitle("Point");
-
-        Geocoder geocoder = new Geocoder(this);
-        List<Address> addressList = null;
-        try {
-            addressList = geocoder.getFromLocation(point.latitude, point.longitude, 1);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        Address address = addressList.get(0);
-        edt.setText(address.getAddressLine(0));
-        ml = new MapLocation(address.getAddressLine(0), address.getLongitude(),address.getLatitude());
+        addpoint(point);
     }
 
     protected synchronized void buildGoogleApiClient() {
@@ -173,6 +163,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+
+            if(createPoint){
+                updateCamera(myPoint);
+            }
         }
     }
 
@@ -207,7 +201,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_LOCATION: {
+            case MY_PERMISSIONS_REQUEST_LOCATION:
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // permission was granted. Do the
@@ -222,12 +216,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     // Permission denied, Disable the functionality that depends on this permission.
                     Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
                 }
-                return;
-            }
-            // other 'case' lines to check for other permissions this app might request.
-            // You can add here other case statements according to your requirement.
+                break;
         }
     }
 
+    private void addpoint(LatLng point){
+        if (mCurrLocationMarker != null) {
+            mCurrLocationMarker.remove();
+        }
 
+        MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.position(point);
+        markerOptions.title("Current Position");
+        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+        mCurrLocationMarker = mMap.addMarker(markerOptions);
+
+        Geocoder geocoder = new Geocoder(this);
+        List<Address> addressList = null;
+        try {
+            addressList = geocoder.getFromLocation(point.latitude, point.longitude, 1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Address address = addressList.get(0);
+        edt.setText(address.getAddressLine(0));
+        ml = new MapLocation(address.getAddressLine(0), address.getLongitude(),address.getLatitude());
+        mCurrLocationMarker.setTitle(address.getLocality());
+
+        updateCamera(point);
+    }
+
+    private void updateCamera(LatLng point){
+        //move map camera
+        CameraUpdate location = CameraUpdateFactory.newLatLngZoom(point, 13);
+        mMap.animateCamera(location);
+
+        //stop location updates
+        if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        }
+    }
 }
